@@ -1,0 +1,290 @@
+name: Playwright Tests
+
+on:
+#   push:
+#   pull_request:
+#     branches: [development]
+  workflow_dispatch:
+
+jobs:
+  playwright-tests:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+
+    steps:
+      # コードをチェックアウト
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Deno のセットアップ（Edge Functions用）
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.5.6
+
+      # Deno の依存関係をキャッシュ
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      # テスト依存関係を事前にロードして、deno.lockを生成
+      - name: Prepare test dependencies
+        run: |
+          # テスト依存関係を事前にロードして、deno.lockを生成
+          # これによりテスト実行時のホットリロードを防ぐ
+          cd backend/supabase/test
+          
+          # Deno v2では新しい形式でロックファイルを使用
+          echo "Caching test file dependencies..."
+          for test_file in **/*.test.ts; do
+            if [ -f "$test_file" ]; then
+              deno cache --config=deno.json "$test_file" || echo "Warning: Failed to cache $test_file"
+            fi
+          done
+          
+          # 共有ヘルパーをキャッシュ
+          echo "Caching shared modules..."
+          for shared_file in shared/*.ts; do
+            if [ -f "$shared_file" ]; then
+              deno cache --config=deno.json "$shared_file" || echo "Warning: Failed to cache $shared_file"
+            fi
+          done
+
+      # Supabase CLI のセットアップ
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Supabase のローカル環境を起動＋DB初期化＋環境変数整形
+      - name: Start Supabase (local)
+        run: |
+          cd backend
+          echo "Starting Supabase local instance..."
+          supabase start -x studio,mailpit
+          
+          echo "Resetting database..."
+          supabase db reset
+          
+          echo "Setting environment variables..."
+          supabase status -o env | sed 's/"//g' >> $GITHUB_ENV
+          
+          echo "Supabase setup complete!"
+
+      # Edge Functionsをローカルで起動
+      - name: Deploy Edge Functions locally
+        run: |
+          cd backend
+          echo "Starting Edge Functions..."
+          
+          # Edge Functionsを起動（バックグラウンドで実行）
+          supabase functions serve --no-verify-jwt 2>&1 | tee functions.log &
+          FUNCTIONS_PID=$!
+          echo $FUNCTIONS_PID > FUNCTIONS_PID
+          echo "Edge Functions deployment started (PID: $FUNCTIONS_PID)"
+          
+          # 起動直後のログを確認
+          sleep 5
+          echo "=== Initial log output (first 30 lines) ==="
+          head -30 functions.log || echo "No log file yet"
+          echo ""
+          
+          if ! kill -0 $FUNCTIONS_PID 2>/dev/null; then
+            echo "Error: Edge Functions process died immediately"
+            echo "=== Full Functions Log ==="
+            cat functions.log || echo "No log file found"
+            exit 1
+          fi
+
+      # Edge Functionsが起動するまで待機
+      - name: Wait for Edge Functions to start
+        run: |
+          echo "Waiting for Edge Functions to start..."
+          echo "Using API URL: $API_URL"
+          echo "Testing health endpoint: $API_URL/functions/v1/health"
+
+          FUNCTIONS_PID=$(cat backend/FUNCTIONS_PID)
+          
+          for i in {1..24}; do
+            # プロセスが生きているか確認
+            if ! kill -0 $FUNCTIONS_PID 2>/dev/null; then
+              echo "Error: Edge Functions process died"
+              echo "=== Last 50 lines of functions.log ==="
+              tail -50 backend/functions.log || echo "No log file found"
+              exit 1
+            fi
+            
+            sleep 5
+
+            # ヘルスチェック（認証ヘッダー付き）
+            echo "Attempt $i: Checking health endpoint..."
+            HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+                     "$API_URL/functions/v1/health" \
+                     -H "Authorization: Bearer $ANON_KEY" 2>&1 || echo "000")
+            
+            echo "Status: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Edge Functions are ready!"
+              break
+            fi
+            
+            echo "Still waiting... ($((i*5)) seconds) [Status: $HTTP_CODE]"
+            
+            # 最後の試行で失敗した場合は詳細ログを出力
+            if [ $i -eq 24 ]; then
+              echo "Error: Edge Functions failed to start after 120 seconds"
+              echo "=== Full functions.log ==="
+              cat backend/functions.log || echo "No log file found"
+              exit 1
+            fi
+          done
+
+      # Node.js のセットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 依存関係をインストール
+      - name: Install dependencies
+        run: npm ci
+
+      # ネイティブモジュールの再ビルド（lightningcss対応）
+      - name: Rebuild native modules
+        run: npm rebuild
+
+      # frontend/web の依存をインストール（next 等。webServer で npm run dev が使う）
+      - name: Install frontend/web dependencies
+        run: cd frontend/web && npm ci
+
+      # Playwright のブラウザをインストール
+      # frontend/web から実行して、root と frontend/web の @playwright/test の二重インストールによる
+      # モジュール不一致エラーを防ぐ
+      - name: Install Playwright Browsers
+        working-directory: frontend/web
+        run: npx playwright install --with-deps
+
+      # Playwright テストの実行
+      # working-directory を frontend/web に設定して、テストファイルの import と CLI が
+      # 同じ @playwright/test パッケージを参照するようにする
+      - name: Run Playwright tests
+        id: playwright_tests
+        working-directory: frontend/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          FIXED_DATE: "2025-10-01T13:00:00Z"
+        run: |
+          npx playwright test --config=test/e2e/playwright.config.ts test/e2e --reporter=list,html 2>&1 | tee ../../playwright-results.txt
+          exit ${PIPESTATUS[0]}
+
+      # テスト結果サマリー
+      - name: Test Results Summary
+        if: always()
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # 基本情報
+          echo "### Run Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # テスト結果のステータス
+          echo "### ✅ Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # 各ステップの結果サマリーを表示
+          if [ "${{ steps.playwright_tests.outcome }}" == "success" ]; then
+            echo "| 🎭 Playwright E2E Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🎭 Playwright E2E Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Playwrightのテスト結果を解析
+          if [ -f "playwright-results.txt" ]; then
+            echo "### 📊 Test Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # ANSIカラーコードを除去
+            sed 's/\x1b\[[0-9;]*m//g' playwright-results.txt > playwright-results-clean.txt
+
+            # テスト統計を抽出（Playwrightの出力形式: "X passed (Ys)" or "X failed, Y passed (Zs)"）
+            # macOS/Linux互換のためsedを使用
+            # スペースを明示的に指定して貪欲マッチングの問題を回避
+            PASSED_TESTS=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' playwright-results-clean.txt | tail -1 || echo "0")
+            FAILED_TESTS=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' playwright-results-clean.txt | tail -1 || echo "0")
+            SKIPPED_TESTS=$(sed -n 's/.* \([0-9][0-9]*\) skipped.*/\1/p' playwright-results-clean.txt | tail -1 || echo "0")
+
+            # Total Testsを計算
+            TOTAL_TESTS=$((PASSED_TESTS + FAILED_TESTS + SKIPPED_TESTS))
+
+            echo "- **Total Tests**: $TOTAL_TESTS" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed**: $PASSED_TESTS ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed**: $FAILED_TESTS ❌" >> $GITHUB_STEP_SUMMARY
+            if [ "$SKIPPED_TESTS" != "0" ]; then
+              echo "- **Skipped**: $SKIPPED_TESTS ⏭️" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # 失敗したテストの詳細を表示
+            if [ "$FAILED_TESTS" != "0" ] && [ "$FAILED_TESTS" != "" ]; then
+              echo "### ❌ Failed Tests Details" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              # 失敗したテストの詳細を抽出（最大200行）
+              grep -A 10 "✘" playwright-results-clean.txt | head -200 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "詳細なレポートは [Playwright Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) のアーティファクトを確認してください。" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          # 全体の結果判定
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.playwright_tests.outcome }}" == "success" ]; then
+            echo "### 🎉 All tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "上記の失敗した項目を確認してください。" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Edge Functions のログを出力（テスト失敗時のデバッグ用）
+      - name: Show Edge Functions logs
+        if: always()
+        run: |
+          if [ -f backend/functions.log ]; then
+            echo "=== Edge Functions Log (last 100 lines) ==="
+            tail -100 backend/functions.log
+          else
+            echo "No functions.log found"
+          fi
+
+      # テストレポートのアップロード
+      # Playwright を frontend/web で実行するため、レポートも frontend/web 配下に生成される
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: frontend/web/playwright-report/
+          retention-days: 30
+
+      # 全体のテスト結果を確認
+      - name: Check overall test status
+        if: steps.playwright_tests.outcome != 'success'
+        run: |
+          echo "Playwright tests failed. See summary for details."
+          exit 1

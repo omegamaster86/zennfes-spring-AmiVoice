@@ -1,0 +1,4 @@
+[submodule "sysdoc_starter"]
+	path = sysdoc_starter
+	url = https://github.com/org-genai/sysdoc_starter
+	branch = dev-starter

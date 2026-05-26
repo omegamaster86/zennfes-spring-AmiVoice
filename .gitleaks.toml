@@ -1,0 +1,72 @@
+# ============================================================
+# Gitleaks 設定ファイル
+# ------------------------------------------------------------
+# - extend.useDefault = true でデフォルトルール (150+ ルール) を継承
+# - allowlist でプロジェクト固有の誤検知を抑制
+# - 検出対象を増やしたい場合は [[rules]] を追加可能
+# ============================================================
+
+title = "dev-starter Gitleaks config"
+
+[extend]
+# Gitleaks 公式のデフォルトルールセット (AWS / GCP / Stripe / Slack / GitHub 等) を継承
+useDefault = true
+
+# ------------------------------------------------------------
+# Allowlist (誤検知の除外)
+# ------------------------------------------------------------
+[allowlist]
+description = "プロジェクトで意図的に許容しているシークレット様の文字列"
+
+# パスベースの除外
+# - .env.example / .env.test: サンプル値・ローカル既知値のため対象外
+# - frontend/web/.env.local: ローカル開発専用 (本来 .gitignore 対象だが念のため)
+# - backend/fastapi/.env: ローカル開発専用
+# - lock ファイル: 依存関係のハッシュは秘密ではない
+# - 自動生成ファイル / ビルド成果物
+# - ドキュメント (例示用のダミーキーを含む可能性)
+paths = [
+    '''(.*?)\.env\.example$''',
+    '''(.*?)\.env\.test(\.example)?$''',
+    '''(.*?)\.env\.local$''',
+    '''backend/fastapi/\.env$''',
+    '''(^|/)package-lock\.json$''',
+    '''(^|/)pnpm-lock\.yaml$''',
+    '''(^|/)yarn\.lock$''',
+    '''(^|/)deno\.lock$''',
+    '''(^|/)uv\.lock$''',
+    '''(^|/)pubspec\.lock$''',
+    '''(^|/)Cargo\.lock$''',
+    '''(^|/)Gemfile\.lock$''',
+    '''(^|/)go\.sum$''',
+    '''.*\.g\.dart$''',
+    '''.*\.freezed\.dart$''',
+    '''.*\.gen\.ts$''',
+    '''node_modules/''',
+    '''\.next/''',
+    '''build/''',
+    '''dist/''',
+    '''\.test-results/''',
+    '''playwright-report/''',
+    '''test-results/''',
+    '''README\.md$''',
+    '''sysdoc_starter/''',
+]
+
+# 正規表現ベースの除外
+# - Supabase ローカル CLI が出力する既知のテストキー (sb_publishable_*, sb_secret_*)
+#   ローカル開発環境専用で全プロジェクト共通の値であり秘密ではない
+# - プレースホルダ文字列 (dev-local-key-please-change-me, your-xxx-here など)
+regexes = [
+    '''sb_publishable_[A-Za-z0-9_\-]{20,}''',
+    '''sb_secret_[A-Za-z0-9_\-]{20,}''',
+    '''dev-local-key-please-change-me''',
+    '''(your|my|sample|example|dummy|placeholder|change[-_]me|xxx+)[-_]?(key|token|secret|password|api[-_]?key)''',
+    '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6.*''',
+]
+
+# 既知の commit を除外したい場合は以下を利用
+# commits = ["a1b2c3d4..."]
+
+# 個別のシークレット文字列 (ハッシュ済) を除外したい場合は stopwords や
+# 個別 [[rules.allowlist]] を併用する

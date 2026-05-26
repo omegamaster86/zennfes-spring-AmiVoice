@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/*
+ * GenAi ブランドカラー
+ *   Primary Blue : #2C61AD
+ *   Dark Navy    : #15386A
+ *
+ * 構成:
+ *   1. :root — CSS カスタムプロパティ
+ *   2. @theme inline — Tailwind v4 ユーティリティに CSS 変数を接続
+ *      → bg-background / text-foreground 等が :root の変数を参照する
+ */
+
+/* ─── 1. CSS カスタムプロパティ (ライトテーマ) ──────────────── */
+:root {
+  --background: #f0f4f9; /* 薄いブルーグレー */
+  --foreground: #0f1826; /* 背景比 約 12:1 */
+
+  --card: #ffffff;
+  --card-foreground: #0f1826;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f1826;
+
+  --primary: #2c61ad; /* GenAi Primary Blue */
+  --primary-foreground: #ffffff;
+
+  --secondary: #e8eef7;
+  --secondary-foreground: #15386a;
+
+  --muted: #e4eaf2;
+  --muted-foreground: #4c6080; /* 背景比 約 5.5:1 */
+
+  --accent: #dce8f5;
+  --accent-foreground: #15386a;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #c8d5e8;
+  --input: #c8d5e8;
+  --ring: #2c61ad;
+  --radius: 0.5rem;
+}
+
+/* ─── 2. Tailwind v4 トークン (utility クラスに CSS 変数を接続) ── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius: var(--radius);
+}
+
+/* ─── ベーススタイル ─────────────────────────────────────────── */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

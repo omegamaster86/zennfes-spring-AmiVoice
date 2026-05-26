@@ -1,0 +1,389 @@
+name: Deno Tests
+
+on:
+#   push:
+#   pull_request:
+#     branches: [development]
+  workflow_dispatch:
+
+jobs:
+  deno-tests:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+
+    steps:
+      # コードをチェックアウト
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Deno のセットアップ（Edge Functions用）
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.5.6  # Supabase Edge Runtime互換バージョン
+
+      # Deno の依存関係をキャッシュ
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      # テスト依存関係を事前にロードして、deno.lockを生成
+      - name: Prepare test dependencies
+        run: |
+          # テスト依存関係を事前にロードして、deno.lockを生成
+          # これによりテスト実行時のホットリロードを防ぐ
+          cd backend/supabase/test
+          
+          # 既存のロックファイルがある場合は削除（Deno 2.x互換性のため）
+          if [ -f "deno.lock" ]; then
+            echo "Removing existing deno.lock (Deno 2.x compatibility)..."
+            rm deno.lock
+          fi
+          
+          # Deno v2では新しい形式でロックファイルを生成
+          echo "Generating new deno.lock for Deno v2..."
+          
+          # テストファイルの依存関係をキャッシュ（lockfile不使用）
+          # --no-lockフラグでlockfileを生成しない（Supabase Edge Runtime互換性のため）
+          echo "Caching test file dependencies..."
+          for test_file in **/*.test.ts; do
+            if [ -f "$test_file" ]; then
+              echo "  - Caching $test_file..."
+              deno cache --no-lock --reload --config=deno.json "$test_file" || echo "Warning: Failed to cache $test_file"
+            fi
+          done
+          
+          # 共有ヘルパーをキャッシュ
+          echo "Caching shared modules..."
+          for shared_file in shared/*.ts; do
+            if [ -f "$shared_file" ]; then
+              echo "  - Caching $shared_file..."
+              deno cache --no-lock --reload --config=deno.json "$shared_file" || echo "Warning: Failed to cache $shared_file"
+            fi
+          done
+          
+          echo "Dependencies cached successfully!"
+          
+      # Edge Functions の依存関係を事前にキャッシュ
+      - name: Cache Edge Functions dependencies
+        run: |
+          echo "Caching Edge Functions dependencies..."
+          cd backend/supabase/functions
+          
+          # 既存のロックファイルがある場合は削除（Supabase Edge Runtime互換性のため）
+          if [ -f "deno.lock" ]; then
+            echo "Removing existing deno.lock (Supabase Edge Runtime uses Deno v2.1.4)..."
+            rm deno.lock
+          fi
+          
+          # Denoのキャッシュディレクトリを確認
+          echo "DENO_DIR: ${DENO_DIR:-default}"
+          echo "Deno cache location:"
+          deno info
+          echo ""
+          
+          # import mapで定義されている外部モジュールを事前にダウンロード
+          # --no-lockフラグでlockfileを生成しない（Supabase Edge Runtime互換性のため）
+          echo "Pre-downloading external dependencies..."
+          deno cache --no-lock --reload "https://esm.sh/@supabase/supabase-js@2" || echo "Warning: Failed to cache @supabase/supabase-js"
+          echo ""
+          
+          # 共有モジュールの依存関係を先にキャッシュ
+          if [ -d "_shared" ]; then
+            echo "Caching shared modules..."
+            for shared_file in _shared/*.ts; do
+              if [ -f "$shared_file" ]; then
+                echo "  - Caching $shared_file"
+                deno cache --no-lock --config=deno.json --reload "$shared_file" || echo "Warning: Failed to cache $shared_file"
+              fi
+            done
+          fi
+          echo ""
+          
+          # 各Edge Functionの依存関係をキャッシュ（import mapを使用）
+          echo "Caching Edge Functions..."
+          for func_dir in */; do
+            func_name="${func_dir%/}"
+            if [ -f "${func_dir}index.ts" ] && [ "$func_name" != "_shared" ]; then
+              echo "  - Caching ${func_name}..."
+              deno cache --no-lock --config=deno.json --reload "${func_dir}index.ts" || echo "Warning: Failed to cache ${func_name}"
+            fi
+          done
+          echo ""
+          
+          # キャッシュの状態を確認
+          echo "=== Deno cache info after caching ==="
+          deno info
+          echo ""
+          echo "Edge Functions dependencies cached!"
+
+      # Supabase CLI のセットアップ
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+          
+      # バージョン情報の確認
+      - name: Show version information
+        run: |
+          echo "=== Version Information ==="
+          echo "Deno version:"
+          deno --version
+          echo ""
+          echo "Supabase CLI version:"
+          supabase --version
+          echo ""
+
+      # Supabase のローカル環境を起動＋DB初期化＋環境変数整形
+      - name: Start Supabase (local)
+        run: |
+          cd backend
+          echo "Starting Supabase local instance..."
+          supabase start -x studio,mailpit
+          
+          echo "Resetting database..."
+          supabase db reset
+          
+          echo "Checking Supabase status..."
+          supabase status
+          
+          echo "Setting environment variables..."
+          supabase status -o env | sed 's/"//g' >> $GITHUB_ENV
+          
+          echo "Supabase setup complete!"
+
+      # Edge Functionsをローカルで起動
+      - name: Deploy Edge Functions locally
+        run: |
+          cd backend
+          # 作業ディレクトリを確認
+          echo "=== Current working directory ==="
+          pwd
+          echo ""
+          
+          # ログファイルにリダイレクトしてバックグラウンドで実行
+          echo "Starting Edge Functions..."
+          echo "=== Supabase functions directory structure ==="
+          find supabase/functions -type f \( -name "*.ts" -o -name "*.json" \) | head -20
+          echo ""
+          echo "=== Checking deno.json ==="
+          cat supabase/functions/deno.json
+          echo ""
+          echo "=== Checking _shared directory ==="
+          ls -la supabase/functions/_shared/
+          echo ""
+          echo "=== Sample function content (health) ==="
+          cat supabase/functions/health/index.ts
+          echo ""
+          echo "=== Sample shared file (auth.ts first 30 lines) ==="
+          head -30 supabase/functions/_shared/auth.ts
+          echo ""
+          
+          # より詳細なログを出力するために、環境変数を設定
+          export RUST_BACKTRACE=full
+          export RUST_LOG=debug
+          export DENO_DIR="${HOME}/.cache/deno"
+          # Denoがネットワークアクセスできることを確認
+          export DENO_NO_UPDATE_CHECK=1
+          
+          # Denoのキャッシュ状態を確認
+          echo "=== Deno cache status ==="
+          ls -la "${HOME}/.cache/deno/" | head -20
+          echo ""
+          
+          # 手動で1つのFunctionをテスト（デバッグ用）
+          echo "=== Manual test: Running health function directly with Deno ==="
+          cd supabase/functions/health
+          timeout 5s deno run --no-lock --allow-net --allow-env --config=../deno.json index.ts || echo "Direct run failed or timed out (expected)"
+          cd ../../..
+          echo ""
+          
+          # プロジェクトルートから起動（絶対パスで確認）
+          echo "=== Starting Edge Functions from: $(pwd) ==="
+          echo "=== Environment variables ==="
+          echo "API_URL: ${API_URL}"
+          echo "ANON_KEY: ${ANON_KEY:0:20}..."
+          echo "DENO_DIR: ${DENO_DIR}"
+          echo ""
+          
+          # Edge Functionsを起動（より冗長なログ）
+          supabase functions serve --no-verify-jwt 2>&1 | tee functions.log &
+          FUNCTIONS_PID=$!
+          echo $FUNCTIONS_PID > FUNCTIONS_PID
+          echo "Edge Functions deployment started (PID: $FUNCTIONS_PID)"
+          
+          # 起動直後のログを確認
+          sleep 5
+          echo "=== Initial log output (first 30 lines) ==="
+          head -30 functions.log || echo "No log file yet"
+          echo ""
+          
+          if ! kill -0 $FUNCTIONS_PID 2>/dev/null; then
+            echo "Error: Edge Functions process died immediately"
+            echo "=== Full Functions Log ==="
+            cat functions.log || echo "No log file found"
+            exit 1
+          fi
+
+      # Edge Functionsが起動するまで待機
+      - name: Wait for Edge Functions to start
+        run: |
+          # Edge Functionsが起動するまで待機（最大120秒に延長）
+          echo "Waiting for Edge Functions to start..."
+          echo "Using API URL: $API_URL"
+          echo "Testing health endpoint: $API_URL/functions/v1/health"
+
+          FUNCTIONS_PID=$(cat backend/FUNCTIONS_PID)
+          
+          for i in {1..24}; do
+            # プロセスが生きているか確認
+            if ! kill -0 $FUNCTIONS_PID 2>/dev/null; then
+              echo "Error: Edge Functions process died"
+              echo "=== Last 50 lines of functions.log ==="
+              tail -50 backend/functions.log || echo "No log file found"
+              exit 1
+            fi
+            
+            sleep 5
+
+            # 汎用的なヘルスチェック関数を使用（認証ヘッダー付き）
+            # より詳細なログを出力
+            echo "Attempt $i: Checking health endpoint..."
+            HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+                     "$API_URL/functions/v1/health" \
+                     -H "Authorization: Bearer $ANON_KEY" 2>&1 || echo "000")
+            
+            echo "Status: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Edge Functions are ready!"
+              break
+            elif [ "$HTTP_CODE" = "503" ]; then
+              echo "Got 503 error, checking function logs..."
+              echo "=== Last 20 lines of functions.log ==="
+              tail -20 backend/functions.log || echo "No log file found"
+              
+              # 503の場合はレスポンスの詳細も表示
+              if [ -f /tmp/response.txt ]; then
+                echo "=== Response body ==="
+                cat /tmp/response.txt
+              fi
+            fi
+            
+            echo "Still waiting... ($((i*5)) seconds) [Status: $HTTP_CODE]"
+            
+            # 最後の試行で失敗した場合は詳細ログを出力
+            if [ $i -eq 24 ]; then
+              echo "Error: Edge Functions failed to start after 120 seconds"
+              echo "=== Full functions.log ==="
+              cat backend/functions.log || echo "No log file found"
+              exit 1
+            fi
+          done
+
+      # Deno テストの実行
+      - name: Run Deno tests
+        id: deno_tests
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ env.API_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.ANON_KEY }}
+          SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.ANON_KEY }}
+          NO_COLOR: 1
+        run: |
+          cd backend/supabase/test
+          deno test --no-lock --allow-net --allow-env --allow-read **/*.test.ts 2>&1 | tee ../../../test-results.txt
+          exit ${PIPESTATUS[0]}
+
+      # Edge Functions のログを出力（テスト失敗時のデバッグ用）
+      - name: Show Edge Functions logs
+        if: always()
+        run: |
+          if [ -f backend/functions.log ]; then
+            echo "=== Edge Functions Log (last 100 lines) ==="
+            tail -100 backend/functions.log
+          else
+            echo "No functions.log found"
+          fi
+
+      - name: Test Results Summary
+        if: always()
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # 基本情報
+          echo "### Run Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # テスト結果のステータス
+          echo "### ✅ Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # 各ステップの結果サマリーを表示
+          if [ "${{ steps.deno_tests.outcome }}" == "success" ]; then
+            echo "| 🧪 Deno Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🧪 Deno Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # テストの詳細結果を解析
+          if [ -f test-results.txt ]; then
+            echo "### 📊 Test Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # ANSIカラーコードを除去
+            sed 's/\x1b\[[0-9;]*m//g' test-results.txt > test-results-clean.txt
+
+            # テスト統計を抽出（macOS/Linux互換）
+            # スペースを明示的に指定して貪欲マッチングの問題を回避
+            PASSED_TESTS=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' test-results-clean.txt | tail -1 || echo "0")
+            FAILED_TESTS=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' test-results-clean.txt | tail -1 || echo "0")
+            # Total Testsはpassedとfailedの合計で計算（サブテストを含む正確な数）
+            TOTAL_TESTS=$((PASSED_TESTS + FAILED_TESTS))
+
+            echo "- **Total Tests**: $TOTAL_TESTS" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed**: $PASSED_TESTS ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed**: $FAILED_TESTS ❌" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # 失敗したテストの詳細を表示
+            if [ "$FAILED_TESTS" != "0" ] && [ "$FAILED_TESTS" != "" ]; then
+              echo "### ❌ Failed Tests Details" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              # "FAILURES" セクションを抽出
+              sed -n '/FAILURES/,/FAILED.*passed/p' test-results-clean.txt | head -200 >> $GITHUB_STEP_SUMMARY || echo "Could not extract failure details" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "詳細は [ログ](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) を確認してください。" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          # 全体の結果判定
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.deno_tests.outcome }}" == "success" ]; then
+            echo "### 🎉 All tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "上記の失敗した項目を確認してください。" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check overall test status
+        if: steps.deno_tests.outcome != 'success'
+        run: |
+          echo "Deno tests failed. See summary for details."
+          exit 1

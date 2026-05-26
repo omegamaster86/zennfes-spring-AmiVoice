@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "dart-code.dart-code",
+    "dart-code.flutter",
+    "denoland.vscode-deno",
+    "eamodio.gitlens"
+  ]
+}

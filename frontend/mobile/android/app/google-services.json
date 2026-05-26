@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "614011212893",
+    "project_id": "cursor-savings",
+    "storage_bucket": "cursor-savings.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:614011212893:android:82b6ef0701cf01b730a9b4",
+        "android_client_info": {
+          "package_name": "com.yourcompany.your_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLvIhqWAAgy-ySNv52JgbZVsI69nbWNlQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

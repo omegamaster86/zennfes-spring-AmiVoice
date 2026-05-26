@@ -1,0 +1,134 @@
+# ============================================================
+# Dependabot 設定
+# ------------------------------------------------------------
+# - 通常モード (weekly + groups + ignore で major のみ別 PR)
+# - セキュリティアラート (GHSA) はスケジュール無視で即時 PR
+# - Flutter (pub) / Deno は Dependabot 非対応のため Trivy/Semgrep で検知
+# 公式リファレンス:
+#   https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+# ============================================================
+version: 2
+updates:
+  # --------------------------------------------------------
+  # ルートの npm (husky, biome, etc.)
+  # --------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - npm
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # --------------------------------------------------------
+  # frontend/web (Next.js)
+  # --------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /frontend/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - npm
+      - frontend
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # メジャーアップグレードは破壊的変更を含むため別 PR で扱う
+      - dependency-name: next
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      - dependency-name: tailwindcss
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@tailwindcss/postcss"
+        update-types:
+          - version-update:semver-major
+
+  # --------------------------------------------------------
+  # backend/fastapi (Python)
+  # --------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /backend/fastapi
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+      - backend
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: fastapi
+        update-types:
+          - version-update:semver-major
+      - dependency-name: pydantic
+        update-types:
+          - version-update:semver-major
+      - dependency-name: uvicorn
+        update-types:
+          - version-update:semver-major
+
+  # --------------------------------------------------------
+  # GitHub Actions のバージョン
+  # --------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
+      include: scope
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch

@@ -1,0 +1,200 @@
+name: Code Review
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR番号（手動実行時に指定）'
+        required: true
+        type: string
+
+jobs:
+  codex-review:
+    # if: ${{ contains(github.event.*.labels.*.name, 'codex review') }} # Optional; to run only when a label is attached
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Explicitly check out the PR's merge commit.
+          ref: refs/pull/${{ github.event.pull_request.number || inputs.pr_number }}/merge
+          persist-credentials: false
+
+      - name: Pre-fetch base and head refs for the PR
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          git fetch --no-tags origin \
+            "$PR_BASE_REF" \
+            "+refs/pull/$PR_NUMBER/head"
+
+      - id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: gpt-5.3-codex
+          effort: high
+          sandbox: read-only
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+
+            あなたは Next.js / Flutter / Supabase を扱うプロジェクトのシニアエンジニアです。
+            PRの差分に対し、建設的かつ簡潔にコードレビューを行ってください。
+
+            ## レビューの基本姿勢
+            - 出力はすべて日本語。
+            - 各指摘は「該当ファイル:行番号」「重要度」「カテゴリ」「指摘理由」「修正例」をセットで提示する。
+            - 重要度は次の3段階を必ず前置きする:
+              - [MUST]   バグ・セキュリティ・データ破壊・明確な仕様違反
+              - [SHOULD] 保守性・可読性・設計上の改善
+              - [NIT]    軽微な提案（任意対応）
+            - 重大な指摘がない場合は、無理に指摘を作らず `LGTM` とだけ返す。
+            - 推測でしか判断できない箇所は「※推測です」と明記する。
+            - 渡されるコードは差分の一部分であるため、未定義に見えるメソッドやクラスを断定的に指摘しない。
+
+            ## レビュー観点（カテゴリ別）
+            - 正確性          : ロジック誤り、null/undefined 取りこぼし、エッジケース未考慮、競合状態
+            - 設計            : 命名の的確さ、関数・コンポーネントの責務分割、レイヤー違反（例: UIから直接DBを叩く等）、変数・関数の粒度
+            - 保守性          : 冗長表現、複雑な条件式、WHYコメントの欠落（WHATコメントは指摘しない）
+            - パフォーマンス  : N+1、不要な再レンダリング、不要なI/O・コピー
+            - セキュリティ    : 明らかな脆弱性、秘密情報の混入、認可漏れ、入力検証漏れ
+            - テスト          : 変更箇所のテストが追加・更新されているか、正常系/異常系/境界値の観点漏れがないか
+
+            ## 指摘しないこと（重要）
+            - 自動フォーマッタで吸収されるスタイル差（空白・改行・インデント等）
+            - 既存スタイルに沿った範囲の命名好み（明確な誤解を招くものは除く）
+            - 「より一般的にはこう書きます」レベルの好み提案
+            - 渡された差分の外側を根拠とする指摘（未定義に見えるメソッド等）
+            - フレームワーク標準APIを未定義扱いした指摘
+            - WHATを説明するコメントの是非
+
+            ## 出力テンプレ（指摘ごとに）
+            [<重要度>][<カテゴリ>] <ファイル>:<行>
+            - 理由: <なぜ問題か>
+            - 修正例:
+              ```<lang>
+              <修正後コード>
+              ```
+
+            ## レビュー対象
+            このPRで実際に変更されたファイル（追加・修正された差分）**だけ** をレビュー対象にしてください。
+            差分の取得には以下を使うこと:
+              git log --oneline ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+              git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+            以下のパスは差分に含まれていてもレビュー対象から除外してください:
+            - `node_modules/` 配下のすべてのファイル
+            - 拡張子が `.md` のファイル
+            - `*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` などのロックファイル
+            - 自動生成ファイル（`*.g.dart`, `*.freezed.dart`, `*.gen.ts` など）
+
+  codex-post-feedback:
+    runs-on: ubuntu-latest
+    needs: codex-review
+    if: needs.codex-review.outputs.final_message != ''
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Post Codex feedback to PR
+        uses: actions/github-script@v7
+        env:
+          CODEX_FINAL_MESSAGE: ${{ needs.codex-review.outputs.final_message }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const body = `### Codex Review (gpt-5.3-codex)\n\n${process.env.CODEX_FINAL_MESSAGE}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request?.number ?? Number(process.env.INPUT_PR_NUMBER),
+              body,
+            });
+
+  claude-review:
+    # if: ${{ contains(github.event.*.labels.*.name, 'claude review') }} # Optional; to run only when a label is attached
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+
+            あなたは Next.js / Flutter / Supabase を扱うプロジェクトのシニアエンジニアです。
+            PRの差分に対し、建設的かつ簡潔にコードレビューを行ってください。
+
+            ## レビューの基本姿勢
+            - 出力はすべて日本語。
+            - 各指摘は「該当ファイル:行番号」「重要度」「カテゴリ」「指摘理由」「修正例」をセットで提示する。
+            - 重要度は次の3段階を必ず前置きする:
+              - [MUST]   バグ・セキュリティ・データ破壊・明確な仕様違反
+              - [SHOULD] 保守性・可読性・設計上の改善
+              - [NIT]    軽微な提案（任意対応）
+            - 重大な指摘がない場合は、無理に指摘を作らず `gh pr comment` で `LGTM` とだけ投稿する。
+            - 推測でしか判断できない箇所は「※推測です」と明記する。
+            - 渡されるコードは差分の一部分であるため、未定義に見えるメソッドやクラスを断定的に指摘しない。
+
+            ## レビュー観点（カテゴリ別）
+            - 正確性          : ロジック誤り、null/undefined 取りこぼし、エッジケース未考慮、競合状態
+            - 設計            : 命名の的確さ、関数・コンポーネントの責務分割、レイヤー違反（例: UIから直接DBを叩く等）、変数・関数の粒度
+            - 保守性          : 冗長表現、複雑な条件式、WHYコメントの欠落（WHATコメントは指摘しない）
+            - パフォーマンス  : N+1、不要な再レンダリング、不要なI/O・コピー
+            - セキュリティ    : 明らかな脆弱性、秘密情報の混入、認可漏れ、入力検証漏れ
+            - テスト          : 変更箇所のテストが追加・更新されているか、正常系/異常系/境界値の観点漏れがないか
+
+            ## 指摘しないこと（重要）
+            - 自動フォーマッタで吸収されるスタイル差（空白・改行・インデント等）
+            - 既存スタイルに沿った範囲の命名好み（明確な誤解を招くものは除く）
+            - 「より一般的にはこう書きます」レベルの好み提案
+            - 渡された差分の外側を根拠とする指摘（未定義に見えるメソッド等）
+            - フレームワーク標準APIを未定義扱いした指摘
+            - WHATを説明するコメントの是非
+
+            ## 出力テンプレ（指摘ごとに）
+            [<重要度>][<カテゴリ>] <ファイル>:<行>
+            - 理由: <なぜ問題か>
+            - 修正例:
+              ```<lang>
+              <修正後コード>
+              ```
+
+            ## レビュー対象
+            このPRで実際に変更されたファイル（追加・修正された差分）**だけ** をレビュー対象にしてください。
+            手順:
+            1. まず `gh pr view ${{ github.event.pull_request.number || inputs.pr_number }} --json files --jq '.files[].path'` で変更ファイル一覧を取得する。
+            2. `gh pr diff ${{ github.event.pull_request.number || inputs.pr_number }}` で差分を取得し、その差分行を中心にレビューする。
+            3. 変更されていないファイルや、PRに含まれない箇所は読み込まず、指摘もしないでください。
+            4. 以下のパスは差分に含まれていてもレビュー対象から除外してください:
+               - `node_modules/` 配下のすべてのファイル
+               - 拡張子が `.md` のファイル
+               - `*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` などのロックファイル
+               - 自動生成ファイル（`*.g.dart`, `*.freezed.dart`, `*.gen.ts` など）
+
+            ## コメントの投稿方法
+            - PRブランチはすでに作業ディレクトリにチェックアウト済みです。
+            - 全体的な指摘や総評は `gh pr comment` で投稿してください。
+            - 具体的なコード位置への指摘は `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) を使ってインラインコメントしてください。
+              インラインコメントは **このPRで変更された行に対してのみ** 行ってください（変更されていない行へのコメントは投稿しないこと）。
+            - GitHub上のコメントとして投稿し、メッセージとしてレビュー本文だけを返さないでください。
+
+          claude_args: |
+            --model claude-opus-4-7
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr view ${{ github.event.pull_request.number || inputs.pr_number }} --json files*)"
