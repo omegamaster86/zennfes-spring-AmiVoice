@@ -191,7 +191,7 @@ jobs:
       # PR コメント通知（警告のみのケースを可視化）
       - name: Comment warnings on PR
         if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
