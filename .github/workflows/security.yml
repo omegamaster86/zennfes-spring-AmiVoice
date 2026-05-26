@@ -216,7 +216,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Download SARIF reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           path: sarif-reports
