@@ -1,8 +1,8 @@
 {
   "devDependencies": {
-    "@biomejs/biome": "2.3.8",
+    "@biomejs/biome": "2.4.15",
     "@types/node": "^24.10.2",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "husky": "^9.1.7"
   },
   "scripts": {
@@ -62,6 +62,6 @@
     "test:report": "node -e \"const p=require('node:path');const fs=require('node:fs');const f=p.join('.test-results','summary.md');if(!fs.existsSync(f)){console.error('summary.md がありません。先に npm run test:all を実行してください。');process.exit(1);}process.stdout.write(fs.readFileSync(f,'utf8'));\""
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.87.1"
+    "@supabase/supabase-js": "^2.106.2"
   }
 }
