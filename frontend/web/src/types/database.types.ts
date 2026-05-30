@@ -34,263 +34,7 @@ export type Database = {
   };
   public: {
     Tables: {
-      m_purchase_item: {
-        Row: {
-          amount: number;
-          created_at: string;
-          created_by: string | null;
-          created_program: string;
-          currency: string;
-          deleted_at: string | null;
-          description: string | null;
-          display_order: number;
-          id: string;
-          is_active: boolean;
-          lock_no: number;
-          name: string;
-          patched_at: string | null;
-          patched_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-        };
-        Insert: {
-          amount: number;
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          currency?: string;
-          deleted_at?: string | null;
-          description?: string | null;
-          display_order?: number;
-          id?: string;
-          is_active?: boolean;
-          lock_no?: number;
-          name: string;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-        };
-        Update: {
-          amount?: number;
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          currency?: string;
-          deleted_at?: string | null;
-          description?: string | null;
-          display_order?: number;
-          id?: string;
-          is_active?: boolean;
-          lock_no?: number;
-          name?: string;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-        };
-        Relationships: [];
-      };
-      m_stripe_payment_method: {
-        Row: {
-          card_brand: string | null;
-          card_exp_month: string | null;
-          card_exp_year: string | null;
-          card_holder_name: string | null;
-          card_last4: string | null;
-          created_at: string;
-          created_by: string | null;
-          created_program: string;
-          deleted_at: string | null;
-          id: string;
-          is_default: boolean;
-          lock_no: number;
-          patched_at: string | null;
-          patched_by: string | null;
-          stripe_payment_method_id: string;
-          type: Database["public"]["Enums"]["payment_method_type"];
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Insert: {
-          card_brand?: string | null;
-          card_exp_month?: string | null;
-          card_exp_year?: string | null;
-          card_holder_name?: string | null;
-          card_last4?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          deleted_at?: string | null;
-          id?: string;
-          is_default?: boolean;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          stripe_payment_method_id: string;
-          type?: Database["public"]["Enums"]["payment_method_type"];
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Update: {
-          card_brand?: string | null;
-          card_exp_month?: string | null;
-          card_exp_year?: string | null;
-          card_holder_name?: string | null;
-          card_last4?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          deleted_at?: string | null;
-          id?: string;
-          is_default?: boolean;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          stripe_payment_method_id?: string;
-          type?: Database["public"]["Enums"]["payment_method_type"];
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "m_stripe_payment_method_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "m_user";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      m_subscription_plan: {
-        Row: {
-          amount: number;
-          billing_interval: Database["public"]["Enums"]["billing_interval"];
-          created_at: string;
-          created_by: string | null;
-          created_program: string;
-          currency: string;
-          deleted_at: string | null;
-          description: string | null;
-          display_order: number;
-          id: string;
-          is_active: boolean;
-          lock_no: number;
-          name: string;
-          patched_at: string | null;
-          patched_by: string | null;
-          stripe_price_id: string;
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-        };
-        Insert: {
-          amount: number;
-          billing_interval?: Database["public"]["Enums"]["billing_interval"];
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          currency?: string;
-          deleted_at?: string | null;
-          description?: string | null;
-          display_order?: number;
-          id?: string;
-          is_active?: boolean;
-          lock_no?: number;
-          name: string;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          stripe_price_id: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-        };
-        Update: {
-          amount?: number;
-          billing_interval?: Database["public"]["Enums"]["billing_interval"];
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          currency?: string;
-          deleted_at?: string | null;
-          description?: string | null;
-          display_order?: number;
-          id?: string;
-          is_active?: boolean;
-          lock_no?: number;
-          name?: string;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          stripe_price_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-        };
-        Relationships: [];
-      };
-      m_user: {
-        Row: {
-          created_at: string;
-          created_by: string | null;
-          created_program: string;
-          deleted_at: string | null;
-          email: string;
-          id: string;
-          lock_no: number;
-          patched_at: string | null;
-          patched_by: string | null;
-          role: Database["public"]["Enums"]["user_role"];
-          stripe_customer_id: string | null;
-          supabase_auth_user_id: string;
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-        };
-        Insert: {
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          deleted_at?: string | null;
-          email: string;
-          id?: string;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          role?: Database["public"]["Enums"]["user_role"];
-          stripe_customer_id?: string | null;
-          supabase_auth_user_id: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-        };
-        Update: {
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          deleted_at?: string | null;
-          email?: string;
-          id?: string;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          role?: Database["public"]["Enums"]["user_role"];
-          stripe_customer_id?: string | null;
-          supabase_auth_user_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-        };
-        Relationships: [];
-      };
+
       t_file_upload: {
         Row: {
           bucket: string;
@@ -365,480 +109,74 @@ export type Database = {
           },
         ];
       };
-      t_purchase: {
+
+      t_transcription_record: {
         Row: {
-          amount: number;
+          amivoice_utterance_id: string | null;
+          confidence: number | null;
           created_at: string;
-          created_by: string | null;
           created_program: string;
-          currency: string;
           deleted_at: string | null;
-          failure_reason: string | null;
+          detected_language: string | null;
+          final_text: string;
           id: string;
-          item_name: string;
+          input_source: string;
+          language_override: string | null;
           lock_no: number;
-          patched_at: string | null;
-          patched_by: string | null;
-          purchase_item_id: string | null;
-          status: Database["public"]["Enums"]["purchase_status"];
-          stripe_payment_intent_id: string | null;
-          stripe_payment_method_id: string | null;
-          succeeded_at: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Insert: {
-          amount: number;
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          currency: string;
-          deleted_at?: string | null;
-          failure_reason?: string | null;
-          id?: string;
-          item_name: string;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          purchase_item_id?: string | null;
-          status?: Database["public"]["Enums"]["purchase_status"];
-          stripe_payment_intent_id?: string | null;
-          stripe_payment_method_id?: string | null;
-          succeeded_at?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Update: {
-          amount?: number;
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          currency?: string;
-          deleted_at?: string | null;
-          failure_reason?: string | null;
-          id?: string;
-          item_name?: string;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          purchase_item_id?: string | null;
-          status?: Database["public"]["Enums"]["purchase_status"];
-          stripe_payment_intent_id?: string | null;
-          stripe_payment_method_id?: string | null;
-          succeeded_at?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "t_purchase_purchase_item_id_fkey";
-            columns: ["purchase_item_id"];
-            isOneToOne: false;
-            referencedRelation: "m_purchase_item";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "t_purchase_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "m_user";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      t_stripe_webhook_event: {
-        Row: {
-          created_at: string;
-          created_program: string;
-          error_message: string | null;
-          event_type: string;
-          id: string;
-          payload: Json;
-          processed_at: string | null;
-          stripe_event_id: string;
+          metadata_json: Json | null;
+          recognized_text: string;
+          translation_policy: string;
           updated_at: string;
           updated_program: string;
         };
         Insert: {
+          amivoice_utterance_id?: string | null;
+          confidence?: number | null;
           created_at?: string;
-          created_program?: string;
-          error_message?: string | null;
-          event_type: string;
+          created_program: string;
+          deleted_at?: string | null;
+          detected_language?: string | null;
+          final_text: string;
           id?: string;
-          payload: Json;
-          processed_at?: string | null;
-          stripe_event_id: string;
+          input_source: string;
+          language_override?: string | null;
+          lock_no?: number;
+          metadata_json?: Json | null;
+          recognized_text: string;
+          translation_policy: string;
           updated_at?: string;
-          updated_program?: string;
+          updated_program: string;
         };
         Update: {
+          amivoice_utterance_id?: string | null;
+          confidence?: number | null;
           created_at?: string;
           created_program?: string;
-          error_message?: string | null;
-          event_type?: string;
+          deleted_at?: string | null;
+          detected_language?: string | null;
+          final_text?: string;
           id?: string;
-          payload?: Json;
-          processed_at?: string | null;
-          stripe_event_id?: string;
+          input_source?: string;
+          language_override?: string | null;
+          lock_no?: number;
+          metadata_json?: Json | null;
+          recognized_text?: string;
+          translation_policy?: string;
           updated_at?: string;
           updated_program?: string;
         };
         Relationships: [];
       };
-      t_subscription: {
-        Row: {
-          cancel_at_period_end: boolean;
-          canceled_at: string | null;
-          created_at: string;
-          created_by: string | null;
-          created_program: string;
-          current_period_end: string | null;
-          current_period_start: string | null;
-          deleted_at: string | null;
-          ended_at: string | null;
-          id: string;
-          latest_invoice_id: string | null;
-          latest_invoice_status: string | null;
-          lock_no: number;
-          patched_at: string | null;
-          patched_by: string | null;
-          plan_id: string | null;
-          started_at: string | null;
-          status: Database["public"]["Enums"]["subscription_status"];
-          stripe_price_id: string | null;
-          stripe_subscription_id: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Insert: {
-          cancel_at_period_end?: boolean;
-          canceled_at?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          current_period_end?: string | null;
-          current_period_start?: string | null;
-          deleted_at?: string | null;
-          ended_at?: string | null;
-          id?: string;
-          latest_invoice_id?: string | null;
-          latest_invoice_status?: string | null;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          plan_id?: string | null;
-          started_at?: string | null;
-          status?: Database["public"]["Enums"]["subscription_status"];
-          stripe_price_id?: string | null;
-          stripe_subscription_id?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Update: {
-          cancel_at_period_end?: boolean;
-          canceled_at?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          current_period_end?: string | null;
-          current_period_start?: string | null;
-          deleted_at?: string | null;
-          ended_at?: string | null;
-          id?: string;
-          latest_invoice_id?: string | null;
-          latest_invoice_status?: string | null;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          plan_id?: string | null;
-          started_at?: string | null;
-          status?: Database["public"]["Enums"]["subscription_status"];
-          stripe_price_id?: string | null;
-          stripe_subscription_id?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "t_subscription_plan_id_fkey";
-            columns: ["plan_id"];
-            isOneToOne: false;
-            referencedRelation: "m_subscription_plan";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "t_subscription_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "m_user";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      t_todo: {
-        Row: {
-          completed_at: string | null;
-          created_at: string;
-          created_by: string | null;
-          created_program: string;
-          deleted_at: string | null;
-          description: string | null;
-          due_date: string | null;
-          id: string;
-          lock_no: number;
-          patched_at: string | null;
-          patched_by: string | null;
-          priority: Database["public"]["Enums"]["todo_priority"];
-          status: Database["public"]["Enums"]["todo_status"];
-          title: string;
-          updated_at: string;
-          updated_by: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Insert: {
-          completed_at?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          created_program: string;
-          deleted_at?: string | null;
-          description?: string | null;
-          due_date?: string | null;
-          id?: string;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          priority?: Database["public"]["Enums"]["todo_priority"];
-          status?: Database["public"]["Enums"]["todo_status"];
-          title: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program: string;
-          user_id: string;
-        };
-        Update: {
-          completed_at?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          created_program?: string;
-          deleted_at?: string | null;
-          description?: string | null;
-          due_date?: string | null;
-          id?: string;
-          lock_no?: number;
-          patched_at?: string | null;
-          patched_by?: string | null;
-          priority?: Database["public"]["Enums"]["todo_priority"];
-          status?: Database["public"]["Enums"]["todo_status"];
-          title?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          updated_program?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "t_todo_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "m_user";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      t_user_fcm_token: {
-        Row: {
-          created_at: string;
-          fcm_token: string;
-          id: string;
-          platform: Database["public"]["Enums"]["fcm_platform"] | null;
-          updated_at: string;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          fcm_token: string;
-          id?: string;
-          platform?: Database["public"]["Enums"]["fcm_platform"] | null;
-          updated_at?: string;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string;
-          fcm_token?: string;
-          id?: string;
-          platform?: Database["public"]["Enums"]["fcm_platform"] | null;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "t_user_fcm_token_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "m_user";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
+
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      del_file_upload: {
-        Args: {
-          p_auth_user_id: string;
-          p_file_id: string;
-          p_updated_program?: string;
-        };
-        Returns: {
-          out_bucket: string;
-          out_id: string;
-          out_original_name: string;
-          out_storage_path: string;
-        }[];
-      };
-      del_stripe_payment_method: {
-        Args: {
-          p_auth_user_id: string;
-          p_stripe_payment_method_id: string;
-          p_updated_program?: string;
-        };
-        Returns: {
-          deleted_id: string;
-          promoted_default_stripe_payment_method_id: string;
-        }[];
-      };
-      find_auth_user_id_by_email: {
-        Args: { p_email: string };
-        Returns: string;
-      };
-      find_auth_user_id_by_line_sub: {
-        Args: { p_sub: string };
-        Returns: string;
-      };
+
       generate_uuid_v7: { Args: never; Returns: string };
-      get_current_user_id: { Args: never; Returns: string };
-      ins_file_upload: {
-        Args: {
-          p_auth_user_id: string;
-          p_bucket: string;
-          p_created_program?: string;
-          p_file_name?: string;
-          p_mime_type?: string;
-          p_original_name: string;
-          p_size_bytes: number;
-          p_storage_path: string;
-          p_url?: string;
-        };
-        Returns: {
-          out_bucket: string;
-          out_file_name: string;
-          out_id: string;
-          out_mime_type: string;
-          out_original_name: string;
-          out_size_bytes: number;
-          out_storage_path: string;
-          out_url: string;
-        }[];
-      };
-      ins_m_user: {
-        Args: {
-          p_auth_user_id: string;
-          p_created_program?: string;
-          p_email: string;
-        };
-        Returns: {
-          email: string;
-          id: string;
-          role: Database["public"]["Enums"]["user_role"];
-        }[];
-      };
-      ins_stripe_payment_method: {
-        Args: {
-          p_auth_user_id: string;
-          p_card_brand: string;
-          p_card_exp_month: string;
-          p_card_exp_year: string;
-          p_card_holder_name: string;
-          p_card_last4: string;
-          p_created_program?: string;
-          p_set_default?: boolean;
-          p_stripe_payment_method_id: string;
-        };
-        Returns: {
-          id: string;
-          is_default: boolean;
-          stripe_payment_method_id: string;
-        }[];
-      };
-      ins_stripe_webhook_event: {
-        Args: {
-          p_event_type: string;
-          p_payload: Json;
-          p_stripe_event_id: string;
-        };
-        Returns: string;
-      };
-      ins_t_purchase: {
-        Args: {
-          p_amount: number;
-          p_auth_user_id: string;
-          p_created_program?: string;
-          p_currency: string;
-          p_item_name: string;
-          p_purchase_item_id: string;
-          p_stripe_payment_method_id: string;
-        };
-        Returns: {
-          amount: number;
-          currency: string;
-          id: string;
-          user_id: string;
-        }[];
-      };
-      ins_t_subscription: {
-        Args: {
-          p_auth_user_id: string;
-          p_created_program?: string;
-          p_plan_id: string;
-          p_stripe_price_id: string;
-        };
-        Returns: {
-          id: string;
-          user_id: string;
-        }[];
-      };
-      ins_todo: {
-        Args: {
-          p_auth_user_id: string;
-          p_created_program?: string;
-          p_description?: string;
-          p_due_date?: string;
-          p_priority?: Database["public"]["Enums"]["todo_priority"];
-          p_title: string;
-        };
-        Returns: {
-          description: string;
-          id: string;
-          priority: Database["public"]["Enums"]["todo_priority"];
-          status: Database["public"]["Enums"]["todo_status"];
-          title: string;
-        }[];
-      };
+
+
       is_admin: { Args: never; Returns: boolean };
       mark_stripe_webhook_event_processed: {
         Args: { p_error_message?: string; p_stripe_event_id: string };

@@ -2,18 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/types/database.types";
 
-/**
- * 認証不要のパス一覧
- */
-const PUBLIC_PATHS = [
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/auth/callback",
-  "/api/auth/line",
-  "/demo",
-];
+// /**
+//  * 認証不要のパス一覧（ログインリダイレクト無効化に伴い未使用）
+//  */
+// const PUBLIC_PATHS = [
+//   "/login",
+//   "/signup",
+//   "/forgot-password",
+//   "/reset-password",
+//   "/auth/callback",
+//   "/api/auth/line",
+//   "/demo",
+// ];
 
 /**
  * Supabaseクライアント（ミドルウェア用）
@@ -61,28 +61,24 @@ export async function updateSession(request: NextRequest) {
   );
 
   // セッション取得（期限切れの場合はリフレッシュしてCookieを更新）
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  await supabase.auth.getSession();
 
-  // JWTの署名をプロジェクトの公開鍵でローカル検証
-  let isAuthenticated = false;
-  if (session) {
-    const { data: claimsData } = await supabase.auth.getClaims(
-      session.access_token,
-    );
-    isAuthenticated = !!claimsData?.claims?.sub;
-  }
-
-  const pathname = request.nextUrl.pathname;
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
-
-  if (!isAuthenticated && !isPublicPath) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("redirectedFrom", pathname);
-    return NextResponse.redirect(url);
-  }
+  // 未ログイン時の /login リダイレクトは無効化（トップ・音声デモ等をログインなしで利用するため）
+  // let isAuthenticated = false;
+  // if (session) {
+  //   const { data: claimsData } = await supabase.auth.getClaims(
+  //     session.access_token,
+  //   );
+  //   isAuthenticated = !!claimsData?.claims?.sub;
+  // }
+  // const pathname = request.nextUrl.pathname;
+  // const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  // if (!isAuthenticated && !isPublicPath) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = "/login";
+  //   url.searchParams.set("redirectedFrom", pathname);
+  //   return NextResponse.redirect(url);
+  // }
 
   return supabaseResponse;
 }

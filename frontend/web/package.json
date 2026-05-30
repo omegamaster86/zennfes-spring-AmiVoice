@@ -11,7 +11,8 @@
     "test:e2e:headed": "playwright test --config=test/e2e/playwright.config.ts test/e2e --headed",
     "test:e2e:debug": "playwright test --config=test/e2e/playwright.config.ts test/e2e --debug",
     "test:e2e:report": "playwright show-report",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -62,6 +63,7 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.2.3",
     "tailwindcss": "^4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

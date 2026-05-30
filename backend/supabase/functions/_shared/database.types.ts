@@ -587,6 +587,63 @@ export type Database = {
           },
         ];
       };
+      t_transcription_record: {
+        Row: {
+          amivoice_utterance_id: string | null;
+          confidence: number | null;
+          created_at: string;
+          created_program: string;
+          deleted_at: string | null;
+          detected_language: string | null;
+          final_text: string;
+          id: string;
+          input_source: string;
+          language_override: string | null;
+          lock_no: number;
+          metadata_json: Json | null;
+          recognized_text: string;
+          translation_policy: string;
+          updated_at: string;
+          updated_program: string;
+        };
+        Insert: {
+          amivoice_utterance_id?: string | null;
+          confidence?: number | null;
+          created_at?: string;
+          created_program: string;
+          deleted_at?: string | null;
+          detected_language?: string | null;
+          final_text: string;
+          id?: string;
+          input_source: string;
+          language_override?: string | null;
+          lock_no?: number;
+          metadata_json?: Json | null;
+          recognized_text: string;
+          translation_policy: string;
+          updated_at?: string;
+          updated_program: string;
+        };
+        Update: {
+          amivoice_utterance_id?: string | null;
+          confidence?: number | null;
+          created_at?: string;
+          created_program?: string;
+          deleted_at?: string | null;
+          detected_language?: string | null;
+          final_text?: string;
+          id?: string;
+          input_source?: string;
+          language_override?: string | null;
+          lock_no?: number;
+          metadata_json?: Json | null;
+          recognized_text?: string;
+          translation_policy?: string;
+          updated_at?: string;
+          updated_program?: string;
+        };
+        Relationships: [];
+      };
       t_todo: {
         Row: {
           completed_at: string | null;
