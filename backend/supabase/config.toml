@@ -337,15 +337,6 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
-# Stripe Webhook は Stripe-Signature による署名検証を行うため JWT 検証は無効化する
-[functions.stripe-webhook]
-verify_jwt = false
-
-# Amazon ギフト券発行は管理者バッチ / 外部スケジューラからの起動を想定し、
-# `x-cron-key` ヘッダによる検証を行うため JWT 検証は無効化する
-[functions.create-amazon-giftcard-for-admin]
-verify_jwt = false
-
 [analytics]
 enabled = true
 port = 54327
