@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SummarySection } from "@/app/(dashboard)/speech/history/[id]/_components/SummarySection";
 import { getTranscriptionRecordById } from "@/features/speech/adapters/transcription-repository";
 import { toRecordDto } from "@/features/speech/api/response";
 
@@ -26,6 +27,12 @@ export default async function SpeechHistoryDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const initialSummary =
+    record.metadataJson &&
+    typeof record.metadataJson.summary === "string"
+      ? record.metadataJson.summary
+      : null;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
@@ -42,6 +49,7 @@ export default async function SpeechHistoryDetailPage({ params }: PageProps) {
             {record.finalText}
           </p>
         </section>
+        <SummarySection recordId={record.id} initialSummary={initialSummary} />
         <section className="space-y-2">
           <h2 className="text-base font-medium">認識原文</h2>
           <p className="text-sm whitespace-pre-wrap rounded-md border p-4 bg-muted/30">
