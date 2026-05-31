@@ -21,21 +21,31 @@ export class AmiVoiceError extends Error {
   }
 }
 
+function filenameForMime(mimeType: string): string {
+  if (mimeType.includes("webm")) return "audio.webm";
+  if (mimeType.includes("wav")) return "audio.wav";
+  if (mimeType.includes("ogg")) return "audio.ogg";
+  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "audio.mp3";
+  return "audio.bin";
+}
+
 export async function recognizeWithAmiVoice(
   audio: Buffer,
   mimeType: string,
   options?: { engine?: string },
 ): Promise<AmiVoiceRecognitionResult> {
-  const apiKey = process.env.AMIVOICE_API_KEY;
+  const apiKey = process.env.AMIVOICE_API_KEY?.trim();
   if (!apiKey) {
     throw new AmiVoiceError("AMIVOICE_API_KEY が設定されていません");
   }
 
+  const engine = options?.engine ?? "-a-general";
+  const blob = new Blob([new Uint8Array(audio)], { type: mimeType });
+
   const form = new FormData();
   form.append("u", apiKey);
-  const blob = new Blob([new Uint8Array(audio)], { type: mimeType });
-  form.append("a", blob, "audio");
-  form.append("d", options?.engine ?? "-a-general");
+  form.append("d", engine);
+  form.append("a", blob, filenameForMime(mimeType));
 
   const response = await fetch(AMIVOICE_RECOGNIZE_URL, {
     method: "POST",
