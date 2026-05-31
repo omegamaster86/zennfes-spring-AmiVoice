@@ -118,3 +118,40 @@ export async function getTranscriptionRecordById(
 
   return mapRow(data as Record<string, unknown>);
 }
+
+export async function updateTranscriptionSummary(
+  id: string,
+  summary: string,
+): Promise<TranscriptionRecordRow> {
+  const supabase = createAdminClient();
+  const existing = await getTranscriptionRecordById(id);
+
+  if (!existing) {
+    throw new Error("レコードが見つかりません");
+  }
+
+  const metadataJson: Record<string, unknown> = {
+    ...(existing.metadata_json ?? {}),
+    summary,
+    summarizedAt: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("t_transcription_record")
+    .update({
+      metadata_json: metadataJson as Json,
+      updated_program: PROGRAM,
+    })
+    .eq("id", id)
+    .is("deleted_at", null)
+    .select(
+      "id, recognized_text, final_text, translation_policy, input_source, detected_language, language_override, amivoice_utterance_id, confidence, metadata_json, created_at",
+    )
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "要約の保存に失敗しました");
+  }
+
+  return mapRow(data as Record<string, unknown>);
+}
